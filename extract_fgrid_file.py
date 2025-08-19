@@ -51,12 +51,11 @@ def extract_fgrid_file(file_path):
     
     df = pd.DataFrame(data)
     print(f"Total cells processed: {len(df)}")
-    # Save to CSV
-    output_file = 'results/fgrid_extracted.csv'
-    df.to_csv(output_file, index=False)
-    print(f"Data saved to {output_file}")
-    
-    print(df.head())
+    # # Save to CSV
+    # output_file = 'results/fgrid_extracted.csv'
+    # df.to_csv(output_file, index=False)
+    # print(f"Data saved to {output_file}")
+
 
     return df
 
