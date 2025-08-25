@@ -34,10 +34,10 @@ def extract_fgrid_file(file_path):
             corners_values = [float(val) for val in corners_values]
             
             if len(corners_values) >= 24:
-                # Calculate averages for first 8, second 8, third 8 values
-                x_ave = np.mean(corners_values[:8])
-                y_ave = np.mean(corners_values[8:16])
-                z_ave = np.mean(corners_values[16:24])
+                # Calculate averages for x, y, z
+                x_ave = np.mean(corners_values[0::3])
+                y_ave = np.mean(corners_values[1::3])
+                z_ave = np.mean(corners_values[2::3])
                 
                 data.append({
                     'i': i,

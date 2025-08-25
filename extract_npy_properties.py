@@ -2,8 +2,9 @@ import pandas as pd
 import numpy as np
 
 def extract_npy_properties(
-    fault_table_file_path: str,
+    fault_table: pd.DataFrame,
     npy_property_file_path: str,
+    save_path: str,
     sim_year: list[int],
     n_i: int,
     n_j: int,
@@ -12,7 +13,7 @@ def extract_npy_properties(
 ) -> pd.DataFrame:
     
     # Load data
-    fault_table = pd.read_csv(fault_table_file_path)
+    # fault_table = pd.read_csv(fault_table_file_path)
     npy_property = np.load(npy_property_file_path)
     
     # Pre-calculate year indices to avoid repeated .index() calls
@@ -66,7 +67,6 @@ def extract_npy_properties(
                         fault_table.loc[valid_k_mask, f'{year}'] = property_values
     
     # Save results
-    output_path = f'{npy_property_file_path.split(".")[0]}_fault_table.csv'
-    fault_table.to_csv(output_path, index=False)
+    fault_table.to_csv(save_path, index=False)
     
     return fault_table
