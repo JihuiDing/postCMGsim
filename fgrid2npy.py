@@ -10,44 +10,42 @@ import re
 import os
 from typing import Tuple
 
-def extract_fgrid_coordinates(filepath: str) -> Tuple[np.ndarray, dict]:
+def fgrid2npy(
+    fgrid_file_path: str,
+    save_dir: str = "results/fgrid_coordinates.npy"
+    ) -> np.ndarray:
     """
     Extract grid coordinates from .fgrid file and organize into numpy array.
     
     Args:
-        filepath: Path to the .fgrid file
-        
+        fgrid_file_path: Path to the .fgrid file
+        save_dir: Output directory
     Returns:
         coordinates_array: numpy array with shape (n_i, n_j, n_k, 3) containing [x_ave, y_ave, z_ave]
-        grid_info: Dictionary containing grid dimensions and metadata
     """
     
-    if not os.path.exists(filepath):
-        raise FileNotFoundError(f"File not found: {filepath}")
+    if not os.path.exists(fgrid_file_path):
+        raise FileNotFoundError(f"File not found: {fgrid_file_path}")
     
-    print(f"Parsing .fgrid file: {filepath}")
+    print(f"Parsing the fgrid file: {fgrid_file_path}")
     
     # Initialize variables
-    grid_info = {}
     coordinates_data = []
     
-    with open(filepath, 'r') as file:
+    with open(fgrid_file_path, 'r') as file:
         content = file.read()
     
     # Extract grid dimensions
     dims_match = re.search(r"'DIMENS  '\s+3\s+'INTE'\s*\n\s*(\d+)\s+(\d+)\s+(\d+)", content)
     if dims_match:
         n_i, n_j, n_k = map(int, dims_match.groups())
-        grid_info['dimensions'] = (n_i, n_j, n_k)
-        print(f"Grid dimensions: I={n_i}, J={n_j}, K={n_k}")
     else:
         raise ValueError("Could not find grid dimensions in .fgrid file")
     
     # Extract map units
     units_match = re.search(r"'MAPUNITS'\s+1\s+'CHAR'\s*\n\s*'([^']+)'", content)
     if units_match:
-        grid_info['units'] = units_match.group(1)
-        print(f"Map units: {grid_info['units']}")
+        print(f"Units: {units_match.group(1)}")
     
     # Split content into COORDS sections
     sections = content.split("'COORDS  '")
@@ -109,118 +107,17 @@ def extract_fgrid_coordinates(filepath: str) -> Tuple[np.ndarray, dict]:
     cells_filled = np.count_nonzero(np.any(coordinates_array != 0, axis=3))
     print(f"Cells filled: {cells_filled}/{total_expected} ({cells_filled/total_expected*100:.1f}%)")
     
-    return coordinates_array, grid_info
-
-def save_coordinates_data(coordinates_array: np.ndarray, grid_info: dict, output_dir: str = "results"):
-    """
-    Save the extracted coordinates data to files.
-    
-    Args:
-        coordinates_array: Coordinates array with shape (n_i, n_j, n_k, 3)
-        grid_info: Grid information dictionary
-        output_dir: Output directory
-    """
-    
-    # Create output directory if it doesn't exist
-    os.makedirs(output_dir, exist_ok=True)
-    
     # Save numpy array
-    np.save(os.path.join(output_dir, "grid_coordinates.npy"), coordinates_array)
+    np.save(save_dir, coordinates_array)
     
-    # Save grid information
-    grid_info_file = os.path.join(output_dir, "grid_info.npy")
-    np.save(grid_info_file, grid_info)
-    
-    # Save as text file for human readability
-    with open(os.path.join(output_dir, "grid_info.txt"), 'w') as f:
-        f.write("Grid Information:\n")
-        f.write("=" * 20 + "\n")
-        f.write(f"Dimensions: I={grid_info['dimensions'][0]}, J={grid_info['dimensions'][1]}, K={grid_info['dimensions'][2]}\n")
-        if 'units' in grid_info:
-            f.write(f"Units: {grid_info['units']}\n")
-        f.write(f"\nCoordinates array shape: {coordinates_array.shape}\n")
-        f.write(f"Coordinates array dtype: {coordinates_array.dtype}\n")
-        
-        # Calculate statistics
-        non_zero_coords = coordinates_array[coordinates_array != 0]
-        if len(non_zero_coords) > 0:
-            f.write(f"\nCoordinate Statistics:\n")
-            f.write(f"  X range: {np.min(coordinates_array[:,:,:,0]):.2f} to {np.max(coordinates_array[:,:,:,0]):.2f}\n")
-            f.write(f"  Y range: {np.min(coordinates_array[:,:,:,1]):.2f} to {np.max(coordinates_array[:,:,:,1]):.2f}\n")
-            f.write(f"  Z range: {np.min(coordinates_array[:,:,:,2]):.2f} to {np.max(coordinates_array[:,:,:,2]):.2f}\n")
-    
-    print(f"Data saved to {output_dir}/")
+    # Print information
     print(f"Coordinates array shape: {coordinates_array.shape}")
+    print(f"Coordinates array dtype: {coordinates_array.dtype}")
+    print(f"Coordinate Statistics:")
+    print(f"  X range: {np.min(coordinates_array[:,:,:,0]):.2f} to {np.max(coordinates_array[:,:,:,0]):.2f}")
+    print(f"  Y range: {np.min(coordinates_array[:,:,:,1]):.2f} to {np.max(coordinates_array[:,:,:,1]):.2f}")
+    print(f"  Z range: {np.min(coordinates_array[:,:,:,2]):.2f} to {np.max(coordinates_array[:,:,:,2]):.2f}")
+    
+    print(f"Data saved to {save_dir}")
 
-def verify_coordinates_data(coordinates_array: np.ndarray, grid_info: dict):
-    """
-    Verify the extracted coordinates data.
-    
-    Args:
-        coordinates_array: Coordinates array
-        grid_info: Grid information
-    """
-    
-    print("\nData Verification:")
-    print(f"  Array shape: {coordinates_array.shape}")
-    print(f"  Expected shape: ({grid_info['dimensions'][0]}, {grid_info['dimensions'][1]}, {grid_info['dimensions'][2]}, 3)")
-    
-    # Check if shapes match
-    expected_shape = (grid_info['dimensions'][0], grid_info['dimensions'][1], grid_info['dimensions'][2], 3)
-    if coordinates_array.shape == expected_shape:
-        print("  ✓ Array shape matches expected dimensions")
-    else:
-        print("  ✗ Array shape does not match expected dimensions")
-        return False
-    
-    # Check for non-zero values
-    non_zero_cells = np.count_nonzero(np.any(coordinates_array != 0, axis=3))
-    total_cells = coordinates_array.shape[0] * coordinates_array.shape[1] * coordinates_array.shape[2]
-    print(f"  Non-zero coordinate cells: {non_zero_cells}/{total_cells} ({non_zero_cells/total_cells*100:.1f}%)")
-    
-    # Check coordinate ranges
-    x_coords = coordinates_array[:,:,:,0]
-    y_coords = coordinates_array[:,:,:,1]
-    z_coords = coordinates_array[:,:,:,2]
-    
-    print(f"  X coordinate range: {np.min(x_coords):.2f} to {np.max(x_coords):.2f}")
-    print(f"  Y coordinate range: {np.min(y_coords):.2f} to {np.max(y_coords):.2f}")
-    print(f"  Z coordinate range: {np.min(z_coords):.2f} to {np.max(z_coords):.2f}")
-    
-    return True
-
-def main():
-    """Main function to extract grid coordinates from .fgrid file."""
-    
-    # File path
-    fgrid_file = "data/JD_Sula_2025_flow.fgrid"
-    
-    try:
-        # Extract coordinates from .fgrid file
-        coordinates_array, grid_info = extract_fgrid_coordinates(fgrid_file)
-        
-        # Verify the data
-        if not verify_coordinates_data(coordinates_array, grid_info):
-            print("Warning: Data verification failed!")
-        
-        # Save the data
-        save_coordinates_data(coordinates_array, grid_info)
-        
-        # Print some sample data
-        print(f"\nSample coordinate data:")
-        print(f"  Cell (1,1,1): [{coordinates_array[0,0,0,0]:.2f}, {coordinates_array[0,0,0,1]:.2f}, {coordinates_array[0,0,0,2]:.2f}]")
-        print(f"  Cell (50,50,39): [{coordinates_array[49,49,38,0]:.2f}, {coordinates_array[49,49,38,1]:.2f}, {coordinates_array[49,49,38,2]:.2f}]")
-        print(f"  Cell (107,117,79): [{coordinates_array[106,116,78,0]:.2f}, {coordinates_array[106,116,78,1]:.2f}, {coordinates_array[106,116,78,2]:.2f}]")
-        
-        print(f"\nExtraction completed successfully!")
-        print(f"Coordinates array saved as: results/grid_coordinates.npy")
-        print(f"Grid info saved as: results/grid_info.npy")
-        
-    except Exception as e:
-        print(f"Error: {e}")
-        return 1
-    
-    return 0
-
-if __name__ == "__main__":
-    exit(main()) 
+    return coordinates_array
