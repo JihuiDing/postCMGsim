@@ -43,15 +43,14 @@ def wrt_cmg_rwd(sr3_folder_path: str = None,
     rwo_folder.mkdir(parents=True, exist_ok=True)
 
     # create a new rwd file
-    rwd_file = sr3_folder / "rwo" / f"{case_name}.rwd"
-    rwd_file.mkdir(parents=True, exist_ok=True)
+    rwd_file = rwo_folder / f"{case_name}.rwd"
+
     # write the rwd file
-    rwdfile = open(rwd_file, 'w')
-    rwdfile.write(f"*FILES \t '{sr3_folder_path}/{case_name}.sr3' \n")
-    rwdfile.write(f"*PRECISION \t {precision} \n")
-    rwdfile.write(f"*OUTPUT \t '{case_name}_{property}.rwo' \n")
-    rwdfile.write(f"*PROPERTY-FOR \t '{property}' \t *ALL-TIMES \n")
-    rwdfile.close()
+    with open(rwd_file, 'w') as f:
+        f.write(f"*FILES \t '{sr3_folder_path}/{case_name}.sr3' \n")
+        f.write(f"*PRECISION \t {precision} \n")
+        f.write(f"*OUTPUT \t '{case_name}_{property}.rwo' \n")
+        f.write(f"*PROPERTY-FOR \t '{property}' \t *ALL-TIMES \n")
 
 
 def rwo2npy(
