@@ -8,6 +8,7 @@ import numpy as np
 import re
 from typing import Tuple, List
 import os
+from pathlib import Path
 
 def rwo2npy(
     rwo_file_path: str,
@@ -133,3 +134,48 @@ def rwo2npy(
     np.save(save_dir, pressure_array)
 
     return pressure_array
+
+
+
+def wrt_cmg_rwd(sr3_folder_path: str = None,
+    case_name: str = None,
+    property: str = 'PRES',
+    precision: int = 4
+    ):
+    """
+    Write a rwd file for CMG simulation results.
+
+    Args:
+        sr3_folder_path: Path to the sr3 folder
+        case_name: Name of the case
+        property: Property to extract
+        precision: Precision of the output
+
+    Returns:
+        None
+    """
+    print(f"{case_name}: writing rwd file ...")
+    # check if the sr3 folder exists
+    sr3_folder = Path(sr3_folder_path)
+    if not sr3_folder.is_dir():
+        raise FileNotFoundError(f"Folder not found: {sr3_folder}")
+    # check if the case name exists in the sr3 folder
+    case_file = sr3_folder / f"{case_name}.sr3" 
+    if not case_file.is_file():
+        raise FileNotFoundError(f"Case not found: {case_file}")
+
+    # create a new folder for the rwd and rwo files
+    rwo_folder = sr3_folder / "rwo"
+    rwo_folder.mkdir(parents=True, exist_ok=True)
+
+    # create a new rwd file
+    rwd_file = sr3_folder / "rwo" / f"{case_name}.rwd"
+    rwd_file.mkdir(parents=True, exist_ok=True)
+    # write the rwd file
+    rwdfile = open(rwd_file, 'w')
+    rwdfile.write(f"*FILES \t '{sr3_folder_path}/{case_name}.sr3' \n")
+    rwdfile.write(f"*PRECISION \t {precision} \n")
+    rwdfile.write(f"*OUTPUT \t '{case_name}_{property}.rwo' \n")
+    rwdfile.write(f"*PROPERTY-FOR \t '{property}' \t *ALL-TIMES \n")
+    rwdfile.close()
+
