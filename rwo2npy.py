@@ -92,7 +92,8 @@ def rwo2npy(
     rwo_folder_path: str,
     case_name: str,
     property: str = 'PRES',
-    save_folder_path: str = "results"
+    save_folder_path: str = "results",
+    show_info: bool = False
     ):
     """
     Parse the .rwo file and extract pressure data.
@@ -148,7 +149,8 @@ def rwo2npy(
                     time_values.append(current_time)
                     time_dates.append(current_date)
                     current_data = []
-                    print(f"Processing time step: {current_time} ({current_date})")
+                    if show_info:
+                        print(f"Processing time step: {current_time} ({current_date})")
                 
             # Check for K, J header
             elif line.startswith("** K ="):
@@ -181,7 +183,8 @@ def rwo2npy(
             'data': current_data
         })
     
-    print(f"Found {len(time_values)} time steps")
+    if show_info:
+        print(f"Found {len(time_values)} time steps")
     
     # Determine grid dimensions
     k_values = set()
@@ -200,7 +203,8 @@ def rwo2npy(
     n_i = i_count
     n_time = len(time_values)
     
-    print(f"Grid dimensions: I={n_i}, J={n_j}, K={n_k}, Time={n_time}")
+    if show_info:
+        print(f"Grid dimensions: I={n_i}, J={n_j}, K={n_k}, Time={n_time}")
     
     # Create the pressure array
     pressure_array = np.zeros((n_i, n_j, n_k, n_time))
