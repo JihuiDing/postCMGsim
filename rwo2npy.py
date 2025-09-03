@@ -74,7 +74,7 @@ def run_rwd_report(
 
     if cmg_version == 'ese-ts2win-v2024.20':
         exe_path='"C:\\Program Files\\CMG\\RESULTS\\2024.20\\Win_x64\\exe\\Report.exe"'
-        cd_path = os.path.join(rwd_folder, f"{case_name}.rwd").rstrip('\\')
+        cd_path = rwd_folder
     else:
         print(f'The CMG version {cmg_version} is not implemented yet .....')
         
