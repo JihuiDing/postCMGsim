@@ -38,19 +38,55 @@ def wrt_cmg_rwd(sr3_folder_path: str = None,
     if not case_file.is_file():
         raise FileNotFoundError(f"Case not found: {case_file}")
 
-    # create a new folder for the rwd and rwo files
+    # create a new folder for the rwo files
     rwo_folder = sr3_folder / "rwo"
     rwo_folder.mkdir(parents=True, exist_ok=True)
 
     # create a new rwd file
-    rwd_file = rwo_folder / f"{case_name}.rwd"
+    rwd_file = sr3_folder / f"{case_name}.rwd"
 
     # write the rwd file
     with open(rwd_file, 'w') as f:
-        f.write(f"*FILES \t '{sr3_folder_path}/{case_name}.sr3' \n")
+        f.write(f"*FILES \t '{case_name}.sr3' \n")
         f.write(f"*PRECISION \t {precision} \n")
-        f.write(f"*OUTPUT \t '{case_name}_{property}.rwo' \n")
+        f.write(f"*OUTPUT \t 'rwo\\{case_name}_{property}.rwo' \n")
         f.write(f"*PROPERTY-FOR \t '{property}' \t *ALL-TIMES \n")
+
+
+def run_rwd_report(
+    rwd_folder_path: str,
+    case_name: str,
+    cmg_version: str = 'ese-ts2win-v2024.20',
+    ):
+    """
+    Run the rwd report.
+    """
+    print(f"{case_name}: generating rwo file ...")
+
+    # check if the rwd folder exists
+    rwd_folder = Path(rwd_folder_path)
+    if not rwd_folder.is_dir():
+        raise FileNotFoundError(f"Folder not found: {rwd_folder}")
+    # check if the case name exists in the rwd folder
+    rwd_file = rwd_folder / f"{case_name}.rwd"
+    if not rwd_file.is_file():
+        raise FileNotFoundError(f"rwd file not found: {rwd_file}")
+
+    if cmg_version == 'ese-ts2win-v2024.20':
+        exe_path='"C:\\Program Files\\CMG\\RESULTS\\2024.20\\Win_x64\\exe\\Report.exe"'
+        cd_path = os.path.join(rwd_folder, f"{case_name}.rwd").rstrip('\\')
+    else:
+        print(f'The CMG version {cmg_version} is not implemented yet .....')
+        
+    # Execute the CMG Results Report on the rwd file to generate the rwo file
+    cmd_line = f"cd {cd_path}  & {exe_path} -f {case_name}.rwd -o {case_name}" # 250821 JD: add output file name otherwise it keeps waiting.
+    try:
+        os.system(cmd_line)
+    except:
+        raise ValueError(f'{case_name} run rwd step encounters an error ...')
+
+
+
 
 
 def rwo2npy(
@@ -179,35 +215,4 @@ def rwo2npy(
     return pressure_array
 
 
-def run_rwd_report(
-    rwd_folder_path: str,
-    case_name: str,
-    cmg_version: str = 'ese-ts2win-v2024.20',
-    ):
-    """
-    Run the rwd report.
-    """
-    print(f"{case_name}: generating rwo file ...")
-
-    # check if the rwd folder exists
-    rwd_folder = Path(rwd_folder_path)
-    if not rwd_folder.is_dir():
-        raise FileNotFoundError(f"Folder not found: {rwd_folder}")
-    # check if the case name exists in the rwd folder
-    rwd_file = rwd_folder / f"{case_name}.rwd"
-    if not rwd_file.is_file():
-        raise FileNotFoundError(f"rwd file not found: {rwd_file}")
-
-    if cmg_version == 'ese-ts2win-v2024.20':
-        exe_path='"C:\\Program Files\\CMG\\RESULTS\\2024.20\\Win_x64\\exe\\Report.exe"'
-        cd_path = os.path.join(rwd_folder, f"{case_name}.rwd").rstrip('\\')
-    else:
-        print(f'The CMG version {cmg_version} is not implemented yet .....')
-        
-    # Execute the CMG Results Report on the rwd file to generate the rwo file
-    cmd_line = f"cd {cd_path}  & {exe_path} -f {case_name}.rwd -o {case_name}" # 250821 JD: add output file name otherwise it keeps waiting.
-    try:
-        os.system(cmd_line)
-    except:
-        raise ValueError(f'{case_name} run rwd step encounters an error ...')
 
