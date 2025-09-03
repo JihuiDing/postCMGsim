@@ -88,29 +88,27 @@ def run_rwd_report(
 
 
 
+
+
 def rwo2npy(
-    rwo_folder_path: str,
-    case_name: str,
-    property: str = 'PRES',
-    save_folder_path: str = "results"
-    ):
+    rwo_file_path: str,
+    save_dir: str = "results/case1_PRES.npy"
+    ) -> np.ndarray:
     """
     Parse the .rwo file and extract pressure data.
     
     Args:
-        rwo_folder_path: Path to the .rwo file
-        case_name: Name of the case
-        property: Property to extract
-        save_folder_path: Path to save the numpy array
+        rwo_file_path: Path to the .rwo file
+        save_dir: Path to save the numpy array
         
     Returns:
         pressure_array: numpy array with shape (n_i, n_j, n_k, n_time)
     """
-    print(f"{case_name}: converting rwo file to numpy array ...")
-
-    rwo_file_path = os.path.join(rwo_folder_path, f"{case_name}_{property}.rwo")
+    
     if not os.path.exists(rwo_file_path):
         raise FileNotFoundError(f"File not found: {rwo_file_path}")
+    
+    print(f"Parsing file: {rwo_file_path}")
     
     # Initialize lists to store data
     time_values = []
@@ -213,9 +211,9 @@ def rwo2npy(
                 print(f"Warning: Expected {n_i} values, got {len(cell_data['values'])} for K={k+1}, J={j+1}, Time={time_data['time']}")
 
     # Save numpy array
-    save_file_path = os.path.join(save_folder_path, f"{case_name}_{property}.npy")
-    np.save(save_file_path, pressure_array)
+    np.save(save_dir, pressure_array)
 
+    return pressure_array
 
 
 
