@@ -111,6 +111,10 @@ def rwo2npy(
     rwo_file_path = os.path.join(rwo_folder_path, f"{case_name}_{property}.rwo")
     if not os.path.exists(rwo_file_path):
         raise FileNotFoundError(f"File not found: {rwo_file_path}")
+
+    # check if the save folder exists
+    save_folder_path = Path(save_folder_path)
+    save_folder_path.mkdir(parents=True, exist_ok=True)
     
     # Initialize lists to store data
     time_values = []
@@ -213,7 +217,7 @@ def rwo2npy(
                 print(f"Warning: Expected {n_i} values, got {len(cell_data['values'])} for K={k+1}, J={j+1}, Time={time_data['time']}")
 
     # Save numpy array
-    save_file_path = os.path.join(save_folder_path, f"{case_name}_{property}.npy")
+    save_file_path = save_folder_path / f"{case_name}_{property}.npy"
     np.save(save_file_path, pressure_array)
 
 
