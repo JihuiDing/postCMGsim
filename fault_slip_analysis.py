@@ -19,12 +19,9 @@ def fault_slip_analysis(
     parameters = pd.read_csv(parameter_file_path)
 
     # input stress state
-    # SH_grad = parameters.loc[parameters["case_num"] == case_name, 'SH_MPa/km'].iloc[0] * (-1)
-    # Sh_grad = parameters.loc[parameters["case_num"] == case_name, 'Sh_MPa/km'].iloc[0] * (-1)
-    # Sv_grad = parameters.loc[parameters["case_num"] == case_name, 'Sv_MPa/km'].iloc[0] * (-1)
-    # SH_azi = parameters.loc[parameters["case_num"] == case_name, 'SH_azi_deg'].iloc[0]
+    # change the sign of the stress gradient and add back hydrostatic gradient to make total stress gradient
     row = parameters.loc[parameters["case_num"] == case_name].iloc[0]
-    SH_grad, Sh_grad, Sv_grad = -row['SH_MPa/km'], -row['Sh_MPa/km'], -row['Sv_MPa/km'] #change the sign of the gradient
+    SH_grad, Sh_grad, Sv_grad = -row['SH_MPa/km']+10, -row['Sh_MPa/km']+10, -row['Sv_MPa/km']+10 
     SH_azi = row['SH_azi_deg']
 
     mu = 0.6 #coefficient of friction
