@@ -99,6 +99,7 @@ def CMG_rwo2npy(
     rwo_folder_path: str,
     case_name: str,
     property: str = 'PRES',
+    is_save: bool = False,
     save_folder_path: str = "results",
     show_info: bool = False
     ):
@@ -172,7 +173,7 @@ def CMG_rwo2npy(
                     })
             
             # Parse pressure values (skip empty lines and headers)
-            elif line and not line.startswith("**") and not line.startswith("RESULTS") and not line.startswith("PRES"):
+            elif line and not line.startswith("**") and not line.startswith("RESULTS") and not line.startswith(property):
                 # Split line and convert to float
                 try:
                     values = [float(x) for x in line.split()]
@@ -214,7 +215,7 @@ def CMG_rwo2npy(
         print(f"Grid dimensions: I={n_i}, J={n_j}, K={n_k}, Time={n_time}")
     
     # Create the pressure array
-    pressure_array = np.zeros((n_i, n_j, n_k, n_time))
+    sim_results = np.zeros((n_i, n_j, n_k, n_time))
     
     # Fill the array
     for time_idx, time_data in enumerate(pressure_data):
@@ -223,13 +224,16 @@ def CMG_rwo2npy(
             j = cell_data['j'] - 1  # Convert to 0-based indexing
             
             if len(cell_data['values']) == n_i:
-                pressure_array[:, j, k, time_idx] = cell_data['values']
+                sim_results[:, j, k, time_idx] = cell_data['values']
             else:
                 print(f"Warning: Expected {n_i} values, got {len(cell_data['values'])} for K={k+1}, J={j+1}, Time={time_data['time']}")
 
     # Save numpy array
-    save_file_path = save_folder_path / f"{case_name}_{property}.npy"
-    np.save(save_file_path, pressure_array)
+    if is_save:
+        save_file_path = save_folder_path / f"{case_name}_{property}.npy"
+        np.save(save_file_path, sim_results)
+
+    return sim_results
 
 
 
