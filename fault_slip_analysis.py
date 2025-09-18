@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
+from pathlib import Path
 
 def fault_slip_analysis(
     pres_folder_path: str,
@@ -90,23 +91,37 @@ def StressTransform3D(Pf, SH, Sh, Sv, phi, theta):
 def FSA_stress_based(
     stress_folder_path: str,
     parameter_file_path: str,
+    fault_cell_file_path: str,
     save_folder_path: str,
     case_name: str, 
+    fault_id: int,
+    fault_strike: float,
+    fault_dip: float
     ):
     
     print(f"Processing {case_name}...")
-    # check if the save folder exists
-    if not os.path.exists(save_folder_path):
-        os.makedirs(save_folder_path)
+
+    # create save folder if it does not exist
+    save_path = Path(save_folder_path)
+    save_path.mkdir(parents=True, exist_ok=True)
 
     # load principal stress arrays
-    SH_stress = np.load(f'{stress_folder_path}/{case_name}_STRESMXP.npy')
-    Sh_stress = np.load(f'{stress_folder_path}/{case_name}_STRESMNP.npy')
-    Sv_stress = np.load(f'{stress_folder_path}/{case_name}_STRESINT.npy')
-    # stress arrays contain zeros
-    SH_stress[SH_stress == 0] = np.nan
-    Sh_stress[Sh_stress == 0] = np.nan
-    Sv_stress[Sv_stress == 0] = np.nan
+    SH = np.load(f'{stress_folder_path}/{case_name}_STRESMXP.npy')
+    Sh = np.load(f'{stress_folder_path}/{case_name}_STRESMNP.npy')
+    Sv = np.load(f'{stress_folder_path}/{case_name}_STRESINT.npy')
+    
+    # # select desired fault cells
+    # coor_fault = np.load(fault_cell_file_path)
+    # fault_id_mask = (coor_fault[:,:,:,3] == fault_id)
+    # SH = SH[fault_id_mask]
+    # Sh = Sh[fault_id_mask]
+    # Sv = Sv[fault_id_mask]
+    
+    # remove zeros in stress arrays to avoid division by zeros
+    SH[SH == 0] = np.nan
+    Sh[Sh == 0] = np.nan
+    Sv[Sv == 0] = np.nan
+
 
     # load parameter csv
     parameters = pd.read_csv(parameter_file_path)
@@ -117,18 +132,17 @@ def FSA_stress_based(
     mu = 0.6 #coefficient of friction
     cohesion = 1 # fault cohesion in MPa
 
-    fault_strike = 10
-    fault_dip = 90
-
     # compute rotation angles
     phi = SH_azi - fault_strike
     theta = fault_dip
 
-    sigma, tau = StressTransform3D_stress_arrays(0, SH_stress, Sh_stress, Sv_stress, phi, theta)
+    sigma, tau = StressTransform3D_stress_arrays(0, SH, Sh, Sv, phi, theta)
     fault_slip = ((tau - cohesion) / sigma >= mu).astype(np.int8)
 
     # save fault slip indicator
     np.save(f'{save_folder_path}/{case_name}_fault_slip.npy', fault_slip)
+
+    return fault_slip
 
 
 
