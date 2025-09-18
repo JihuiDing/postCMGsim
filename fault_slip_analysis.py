@@ -92,18 +92,14 @@ def FSA_stress_based(
     stress_folder_path: str,
     parameter_file_path: str,
     fault_cell_file_path: str,
-    save_folder_path: str,
+    # save_folder_path: str,
     case_name: str, 
     fault_id: int,
     fault_strike: float,
     fault_dip: float
     ):
     
-    print(f"Processing {case_name}...")
-
-    # create save folder if it does not exist
-    save_path = Path(save_folder_path)
-    save_path.mkdir(parents=True, exist_ok=True)
+    # print(f"Processing {case_name}...")
 
     # load principal stress arrays
     SH = np.load(f'{stress_folder_path}/{case_name}_STRESMXP.npy')
@@ -139,8 +135,11 @@ def FSA_stress_based(
     sigma, tau = StressTransform3D_stress_arrays(0, SH, Sh, Sv, phi, theta)
     fault_slip = ((tau - cohesion) / sigma >= mu).astype(np.int8)
 
-    # save fault slip indicator
-    np.save(f'{save_folder_path}/{case_name}_fault_slip.npy', fault_slip)
+    # # create save folder if it does not exist
+    # save_path = Path(save_folder_path)
+    # save_path.mkdir(parents=True, exist_ok=True)
+    # # save fault slip indicator
+    # np.save(f'{save_folder_path}/{case_name}_fault_slip.npy', fault_slip)
 
     return fault_slip
 
