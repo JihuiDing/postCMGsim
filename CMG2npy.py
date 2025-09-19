@@ -115,7 +115,7 @@ def CMG_rwo2npy(
     Returns:
         pressure_array: numpy array with shape (n_i, n_j, n_k, n_time)
     """
-    print(f"{case_name}: converting rwo file to numpy array ...")
+    # print(f"{case_name}: converting rwo file to numpy array ...")
 
     rwo_file_path = os.path.join(rwo_folder_path, f"{case_name}_{property}.rwo")
     if not os.path.exists(rwo_file_path):
