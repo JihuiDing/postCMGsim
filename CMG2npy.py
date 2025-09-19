@@ -30,7 +30,7 @@ def generate_CMG_rwd(
     Returns:
         None
     """
-    print(f"{case_name}: writing rwd file ...")
+    # print(f"{case_name}: writing rwd file ...")
     # check if the sr3 folder exists
     sr3_folder = Path(sr3_folder_path)
     if not sr3_folder.is_dir():
@@ -69,7 +69,7 @@ def run_CMG_rwd_report(
     """
     Run the rwd report.
     """
-    print(f"{case_name}: generating rwo file ...")
+    # print(f"{case_name}: generating rwo file ...")
 
     # check if the rwd folder exists
     rwd_folder = Path(rwd_folder_path)
