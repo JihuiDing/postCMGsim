@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from pathlib import Path
 
-def fault_slip_analysis(
+def FSA_pressure_based(
     pres_folder_path: str,
     coor_fault_file_path: str,
     parameter_file_path: str,
@@ -11,7 +11,7 @@ def fault_slip_analysis(
     case_name: str, 
     ):
     
-    print(f"Processing {case_name}...")
+    # print(f"Processing {case_name}...")
     # check if the save folder exists
     if not os.path.exists(save_folder_path):
         os.makedirs(save_folder_path)
