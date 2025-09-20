@@ -88,42 +88,30 @@ def StressTransform3D(Pf, SH, Sh, Sv, phi, theta):
     return sigma, tau
 
 
-def FSA_stress_based(
-    stress_folder_path: str,
-    parameter_file_path: str,
-    fault_cell_file_path: str,
-    # save_folder_path: str,
-    case_name: str, 
-    fault_id: int,
+def FSA_stress_based( 
+    SH: np.ndarray,
+    Sh: np.ndarray,
+    Sv: np.ndarray,
+    SH_azi: float,
     fault_strike: float,
     fault_dip: float
-    ):
-    
-    # print(f"Processing {case_name}...")
+    ) -> np.ndarray:
 
-    # load principal stress arrays
-    SH = np.load(f'{stress_folder_path}/{case_name}_STRESMXP.npy')
-    Sh = np.load(f'{stress_folder_path}/{case_name}_STRESMNP.npy')
-    Sv = np.load(f'{stress_folder_path}/{case_name}_STRESINT.npy')
-    
-    # # select desired fault cells
-    # coor_fault = np.load(fault_cell_file_path)
-    # fault_id_mask = (coor_fault[:,:,:,3] == fault_id)
-    # SH = SH[fault_id_mask]
-    # Sh = Sh[fault_id_mask]
-    # Sv = Sv[fault_id_mask]
+    # # load principal stress arrays
+    # SH = np.load(f'{stress_folder_path}/{case_name}_STRESMXP.npy')
+    # Sh = np.load(f'{stress_folder_path}/{case_name}_STRESMNP.npy')
+    # Sv = np.load(f'{stress_folder_path}/{case_name}_STRESINT.npy')
     
     # remove zeros in stress arrays to avoid division by zeros
     SH[SH == 0] = np.nan
     Sh[Sh == 0] = np.nan
     Sv[Sv == 0] = np.nan
 
-
-    # load parameter csv
-    parameters = pd.read_csv(parameter_file_path)
-    # extract the azimuth of the maximum horizontal stress
-    row = parameters.loc[parameters["case_num"] == case_name].iloc[0]
-    SH_azi = row['SH_azi_deg']
+    # # load parameter csv
+    # parameters = pd.read_csv(parameter_file_path)
+    # # extract the azimuth of the maximum horizontal stress
+    # row = parameters.loc[parameters["case_num"] == case_name].iloc[0]
+    # SH_azi = row['SH_azi_deg']
 
     mu = 0.6 #coefficient of friction
     cohesion = 1 # fault cohesion in MPa
@@ -134,12 +122,6 @@ def FSA_stress_based(
 
     sigma, tau = StressTransform3D_stress_arrays(0, SH, Sh, Sv, phi, theta)
     fault_slip = ((tau - cohesion) / sigma >= mu).astype(np.int8)
-
-    # # create save folder if it does not exist
-    # save_path = Path(save_folder_path)
-    # save_path.mkdir(parents=True, exist_ok=True)
-    # # save fault slip indicator
-    # np.save(f'{save_folder_path}/{case_name}_fault_slip.npy', fault_slip)
 
     return fault_slip
 
