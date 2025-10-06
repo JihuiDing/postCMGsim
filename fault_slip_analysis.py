@@ -168,3 +168,41 @@ def StressTransform3D_stress_arrays(Pf, SH, Sh, Sv, phi, theta):
     sigma = result[...,2,2] # normal stress
     
     return sigma, tau
+
+
+def tau_sigma_ratio( 
+    SH: np.ndarray,
+    Sh: np.ndarray,
+    Sv: np.ndarray,
+    SH_azi: float,
+    fault_strike: float,
+    fault_dip: float
+    ) -> np.ndarray:
+
+    # # load principal stress arrays
+    # SH = np.load(f'{stress_folder_path}/{case_name}_STRESMXP.npy')
+    # Sh = np.load(f'{stress_folder_path}/{case_name}_STRESMNP.npy')
+    # Sv = np.load(f'{stress_folder_path}/{case_name}_STRESINT.npy')
+    
+    # remove zeros in stress arrays to avoid division by zeros
+    SH[SH == 0] = np.nan
+    Sh[Sh == 0] = np.nan
+    Sv[Sv == 0] = np.nan
+
+    # # load parameter csv
+    # parameters = pd.read_csv(parameter_file_path)
+    # # extract the azimuth of the maximum horizontal stress
+    # row = parameters.loc[parameters["case_num"] == case_name].iloc[0]
+    # SH_azi = row['SH_azi_deg']
+
+    # mu = 0.6 #coefficient of friction
+    cohesion = 1 # fault cohesion in MPa
+
+    # compute rotation angles
+    phi = SH_azi - fault_strike
+    theta = fault_dip
+
+    sigma, tau = StressTransform3D_stress_arrays(0, SH, Sh, Sv, phi, theta)
+    tau_sigma_ratio = (tau - cohesion) / sigma
+
+    return tau_sigma_ratio
