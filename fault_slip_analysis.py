@@ -120,10 +120,10 @@ def FSA_stress_based(
     phi = SH_azi - fault_strike
     theta = fault_dip
 
-    sigma, tau = StressTransform3D_stress_arrays(0, SH, Sh, Sv, phi, theta)
-    fault_slip = ((tau - cohesion) / sigma >= mu).astype(np.int8)
+    sigma, tau = StressTransform3D_stress_arrays(0, SH, Sh, Sv, phi, theta) # Pf=0 for effective stresses
+    fault_slip_indicator = ((tau - cohesion) / sigma >= mu).astype(np.int8)
 
-    return fault_slip
+    return sigma, tau, fault_slip_indicator
 
 
 
@@ -202,7 +202,7 @@ def tau_sigma_ratio(
     phi = SH_azi - fault_strike
     theta = fault_dip
 
-    sigma, tau = StressTransform3D_stress_arrays(0, SH, Sh, Sv, phi, theta)
+    sigma, tau = StressTransform3D_stress_arrays(0, SH, Sh, Sv, phi, theta) # Pf=0 for effective stresses
     tau_sigma_ratio = (tau - cohesion) / sigma
 
     return tau_sigma_ratio
