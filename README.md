@@ -10,13 +10,13 @@ Jihui Ding (jihuid@stanford.edu)
 
 ## How to Use
 
-1. Perform geomodeling in Petrel and create grid files for CMG simulations
+1. Extract grid coordinates and fault IDs
 
-2. Run a Petrel Uncertainty & Optimization workflow to generate geological realizations that contain finit files, extract realizations (e.g., porosity and permeability) and convert them into CMG compatible format.
+2. Extract CMG simulations results and save them as Numpy arrays
 
-3. Set up a CMG dat file template in which all constant reservoir properties and simulation settings. In the template, set realization properties as variables. Finally, generate dat files by replacing variables with realizations (e.g., file paths to 3D properties, sampled values for flow and geomechanical properties).
+3. Perform fault slip analysis based on either pore pressure or simulated principal stresses
 
-4. Run simulations on these dat files in batches (e.g., batch of 100) on a computing cluster.
+4. Visualize results in 2D or 3D
 
 ## Acknowledgements
 
