@@ -20,5 +20,5 @@ Jihui Ding (jihuid@stanford.edu)
 
 ## Acknowledgements
 
-This project builds on implementations from [Yuna Li/pyCCUS](https://github.com/AndyStudio/pyCCUS-public).
+This project builds on implementations from [pyCCUS](https://github.com/AndyStudio/pyCCUS-public).
 
