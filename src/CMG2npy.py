@@ -15,7 +15,7 @@ def generate_CMG_rwd(
     sr3_folder_path: str = None,
     case_name: str = None,
     property: str = 'PRES',
-    is_gmc_property: bool = False,
+    sim_results_file_format: str = 'sr3',
     precision: int = 4
     ):
     """
@@ -35,11 +35,11 @@ def generate_CMG_rwd(
     sr3_folder = Path(sr3_folder_path)
     if not sr3_folder.is_dir():
         raise FileNotFoundError(f"Folder not found: {sr3_folder}")
-    # check if the case name exists in the sr3 folder
-    if is_gmc_property:
-        case_file = sr3_folder / f"{case_name}.gmch.sr3" 
-    else:
-        case_file = sr3_folder / f"{case_name}.sr3" 
+
+    if sim_results_file_format not in ('sr3', 'gmch.sr3'):
+        raise ValueError("Use correct file format: sr3 or gmch.sr3")
+    case_file = sr3_folder / f"{case_name}.{sim_results_file_format}" 
+
     if not case_file.is_file():
         raise FileNotFoundError(f"Case not found: {case_file}")
 
@@ -52,10 +52,7 @@ def generate_CMG_rwd(
 
     # write the rwd file
     with open(rwd_file, 'w') as f:
-        if is_gmc_property:
-            f.write(f"*FILES \t '{case_name}.gmch.sr3' \n")
-        else:
-            f.write(f"*FILES \t '{case_name}.sr3' \n")
+        f.write(f"*FILES \t '{case_name}.{sim_results_file_format}' \n")  
         f.write(f"*PRECISION \t {precision} \n")
         f.write(f"*OUTPUT \t 'rwo\\{case_name}_{property}.rwo' \n")
         f.write(f"*PROPERTY-FOR \t '{property}' \t *ALL-TIMES \n")
