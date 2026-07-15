@@ -20,10 +20,11 @@ def CMG_format_decompress(file_path):
     
     with open(file_path, 'r') as f:
         for line_num, line in enumerate(f, 1):
-            line = line.strip()
-            
-            # Skip empty lines and comments
-            if not line or line.startswith('**'):
+            # strip inline/full-line comments (CMG uses **, Eclipse/GRDECL uses --)
+            line = line.split('**', 1)[0].split('--', 1)[0].strip()
+
+            # skip empty lines
+            if not line:
                 continue
             
             # Split the line into tokens
