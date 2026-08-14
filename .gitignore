@@ -1,6 +1,9 @@
 # repo root gitignore
 # ignore all system/cache/environment files
 
+# claude
+.claude/
+
 # macOS
 .DS_Store
 .AppleDouble

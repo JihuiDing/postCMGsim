@@ -158,7 +158,77 @@ def StressTransform3D_stress_arrays(Pf, SH, Sh, Sv, phi, theta):
     return sigma, tau
 
 
-def tau_sigma_ratio( 
+def StressTransform3D_per_cell(Pf, SH, Sh, Sv, phi, theta):
+    """
+    Same result as StressTransform3D_stress_arrays, but phi/theta may vary per cell.
+
+    Pf       : scalar pore pressure
+    SH,Sh,Sv : numpy arrays, e.g. (n_cells,) or (n_cells,n_times)
+    phi      : SH_azi - fault_strike, scalar or per-cell array (degrees)
+    theta    : fault dip, scalar or per-cell array (degrees)
+    Returns:
+        sigma, tau : arrays with the same shape as SH
+
+    Resolves the traction directly on the fault normal instead of building a
+    single rotation matrix, so the angles can be arrays. The stress tensor is
+    diagonal (principal axes along SH, Sh, Sv), hence:
+        n     = [sin(theta)sin(phi), sin(theta)cos(phi), cos(theta)]
+        sigma = n . S n ,  tau = sqrt(|S n|^2 - sigma^2)
+    """
+    s11, s22, s33 = SH - Pf, Sh - Pf, Sv - Pf
+
+    phi = np.asarray(phi, dtype=float)
+    theta = np.asarray(theta, dtype=float)
+    # append trailing axes so per-cell angles broadcast against (n_cells,n_times)
+    while phi.ndim < np.ndim(s11):
+        phi = phi[..., None]
+        theta = theta[..., None]
+
+    # fault unit normal in the (SH, Sh, Sv) frame
+    sin_theta, cos_theta = np.sin(np.radians(theta)), np.cos(np.radians(theta))
+    nx = sin_theta * np.sin(np.radians(phi))
+    ny = sin_theta * np.cos(np.radians(phi))
+    nz = cos_theta
+
+    # traction t = S n, then split into normal and shear parts
+    sigma = s11 * nx**2 + s22 * ny**2 + s33 * nz**2
+    t_sq = (s11 * nx)**2 + (s22 * ny)**2 + (s33 * nz)**2
+    tau = np.sqrt(np.maximum(t_sq - sigma**2, 0.0)) # clip to avoid tiny negative round-off
+
+    return sigma, tau
+
+
+def FSA_stress_based_per_cell(
+    SH: np.ndarray,
+    Sh: np.ndarray,
+    Sv: np.ndarray,
+    SH_azi: float,
+    fault_strike: np.ndarray,
+    fault_dip: np.ndarray,
+    fault_cohesion: float,
+    friction_coefficient: float
+    ) -> np.ndarray:
+    """
+    As FSA_stress_based, but fault_strike and fault_dip may be per-cell arrays
+    (e.g. from JD_geothermal_coor&fault&dip.npy, where strike = dip_azimuth - 90).
+    Unlike FSA_stress_based this does not modify the input arrays in place.
+    """
+    # remove zeros in stress arrays to avoid division by zeros
+    SH = np.where(SH == 0, np.nan, SH)
+    Sh = np.where(Sh == 0, np.nan, Sh)
+    Sv = np.where(Sv == 0, np.nan, Sv)
+
+    # compute rotation angles
+    phi = SH_azi - np.asarray(fault_strike)
+    theta = fault_dip
+
+    sigma, tau = StressTransform3D_per_cell(0, SH, Sh, Sv, phi, theta) # Pf=0 for effective stresses
+    fault_slip_indicator = ((tau - fault_cohesion) / sigma >= friction_coefficient).astype(np.int8)
+
+    return sigma, tau, fault_slip_indicator
+
+
+def tau_sigma_ratio(
     SH: np.ndarray,
     Sh: np.ndarray,
     Sv: np.ndarray,
