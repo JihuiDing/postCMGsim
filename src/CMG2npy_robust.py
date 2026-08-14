@@ -19,13 +19,25 @@ Changes:
      before the data is trusted.
   3. A row with the wrong number of values now raises instead of warning.
   4. run_CMG_rwd_report waits until the rwo file size stops changing, so a
-     write still sitting in the Windows client cache is not read too early.
+     write still sitting in the Windows client cache is not read too early,
+     and it checks the Report.exe exit code. os.system returns the exit code
+     rather than raising, so the original try/except never fired and a failed
+     run produced a missing or truncated rwo with no error.
+  5. extract_case_local() runs the whole sr3 -> rwo -> npy chain on local disk
+     and writes back only the npy, which keeps the large intermediate files off
+     the network share.
+
+Note: requesting several properties from one rwd (multiple *OUTPUT /
+*PROPERTY-FOR blocks) was tried and does not work with CMG Results 2024.20 as
+invoked here, most likely because the command line already passes a single
+-o output target. One rwd per property remains the only supported form.
 """
 
 import numpy as np
 import re
 import os
 import time
+import subprocess
 from pathlib import Path
 
 
@@ -89,14 +101,27 @@ def wait_until_stable(file_path, checks: int = 3, interval: float = 1.0, timeout
 def run_CMG_rwd_report(
     rwd_folder_path: str,
     case_name: str,
-    property: str = None,
+    property = None,
     cmg_version: str = 'ese-ts2win-v2024.20',
     wait_for_output: bool = True,
     ):
     """
-    Run the rwd report. Optionally wait for the rwo file to finish being written.
+    Run the rwd report, check that it succeeded, and optionally wait for the
+    output to finish being written.
 
-    Pass `property` to enable the wait (the rwo name is case_name_property.rwo).
+    `property` may be a single property name or a list of them. Every
+    corresponding rwo file is waited on. Pass None to skip the wait.
+
+    Unlike CMG2npy, the exit code is checked. os.system returns the exit code
+    rather than raising, so the original try/except never fired and a failed
+    Report.exe produced a missing or truncated rwo without any error.
+
+    The working directory is set with subprocess's cwd= rather than a shell
+    'cd'. On Windows a plain 'cd' does not switch drives, so running from a
+    mapped network drive while the rwd sits on local disk left Report.exe in
+    the wrong place and it reported "Input file 'caseN.rwd' is not accessible".
+    Passing cwd= changes drive and directory together, and dropping the shell
+    also removes any quoting problems with spaces in the exe path.
     """
     rwd_folder = Path(rwd_folder_path)
     if not rwd_folder.is_dir():
@@ -106,20 +131,27 @@ def run_CMG_rwd_report(
         raise FileNotFoundError(f"rwd file not found: {rwd_file}")
 
     if cmg_version == 'ese-ts2win-v2024.20':
-        exe_path = '"C:\\Program Files\\CMG\\RESULTS\\2024.20\\Win_x64\\exe\\Report.exe"'
-        cd_path = rwd_folder
+        # no surrounding quotes: the argument list form does not go through a shell
+        exe_path = r"C:\Program Files\CMG\RESULTS\2024.20\Win_x64\exe\Report.exe"
     else:
         raise ValueError(f'The CMG version {cmg_version} is not implemented yet .....')
 
-    cmd_line = f"cd {cd_path}  & {exe_path} -f {case_name}.rwd -o {case_name}"
-    try:
-        os.system(cmd_line)
-    except:
-        raise ValueError(f'{case_name} run rwd step encounters an error ...')
+    result = subprocess.run(
+        [exe_path, "-f", f"{case_name}.rwd", "-o", case_name],
+        cwd=str(rwd_folder),
+        capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"{case_name}: Report.exe exited with code {result.returncode}\n"
+            f"  ran in: {rwd_folder}\n"
+            f"  stdout: {(result.stdout or '')[-500:]}\n"
+            f"  stderr: {(result.stderr or '')[-500:]}")
 
-    # make sure the output has actually landed before anyone reads it
+    # make sure the outputs have actually landed before anyone reads them
     if wait_for_output and property is not None:
-        wait_until_stable(rwd_folder / "rwo" / f"{case_name}_{property}.rwo")
+        props = [property] if isinstance(property, str) else list(property)
+        for prop in props:
+            wait_until_stable(rwd_folder / "rwo" / f"{case_name}_{prop}.rwo")
 
 
 def CMG_rwo2npy(
@@ -132,6 +164,7 @@ def CMG_rwo2npy(
     expected_shape: tuple = None,
     expected_active: int = None,
     copy_local_first: bool = False,
+    dtype = None,
     ):
     """
     Parse a CMG rwo file into a numpy array of shape (n_i, n_j, n_k, n_time).
@@ -143,6 +176,10 @@ def CMG_rwo2npy(
                            that is complete in structure but short on data
         copy_local_first : copy the rwo to a local temp file before parsing,
                            for use when the network share is unreliable
+        dtype            : e.g. np.float32 to halve the array and file size.
+                           CMG writes 4 significant digits (*PRECISION 4) and
+                           float32 holds about 7, so nothing real is lost.
+                           None keeps the float64 default.
     """
     rwo_file_path = Path(rwo_folder_path) / f"{case_name}_{property}.rwo"
     if not rwo_file_path.exists():
@@ -274,7 +311,134 @@ def CMG_rwo2npy(
     if show_info:
         print(f"Active cells at t0: {n_active}")
 
+    # cast after the checks, so the active-cell count is done on the parsed values
+    if dtype is not None:
+        sim_results = sim_results.astype(dtype)
+
     if is_save:
         np.save(save_folder_path / f"{case_name}_{property}.npy", sim_results)
 
     return sim_results
+
+
+def extract_case_local(
+    sr3_folder_path: str,
+    case_name: str,
+    property_list: list,
+    save_folder_path: str,
+    sim_results_file_format: str = 'sr3',
+    precision: int = 4,
+    cmg_version: str = 'ese-ts2win-v2024.20',
+    local_work_dir: str = None,
+    expected_shape: tuple = None,
+    expected_active: int = None,
+    dtype = None,
+    keep_rwo: bool = False,
+    show_info: bool = False,
+    ):
+    """
+    Run the whole sr3 -> rwd -> rwo -> npy chain for one case on LOCAL disk.
+
+    Running in place on a mapped network drive moves a lot of data over SMB per
+    case: the sr3 is read once per property, and each rwo is written to the
+    share and then read straight back to be parsed. For 5 properties that is
+    roughly
+
+        5 x 90 MB sr3 read + 5 x 64 MB rwo written + 5 x 64 MB rwo read
+        ~ 1.1 GB across the network per case
+
+    Doing the work locally leaves only the sr3 copy in and the npy files out:
+
+        1 x 90 MB sr3 read + 5 x ~19-38 MB npy written
+
+    Properties are processed one at a time and each rwo is deleted after it is
+    parsed, so local disk use stays around sr3 + one rwo (~155 MB) rather than
+    sr3 + all rwo.
+
+    Args
+        local_work_dir : where to stage the case. None uses the system temp dir.
+                         Point this at a fast local disk (not the mapped drive).
+        dtype          : e.g. np.float32 to halve the npy size. CMG writes 4
+                         significant digits, so float32 loses nothing real.
+        keep_rwo       : keep the local rwo files instead of deleting them
+                         (they are still discarded with the temp directory
+                         unless local_work_dir is set).
+
+    Returns a dict {property: npy_path}.
+    """
+    import shutil, tempfile
+
+    sr3_folder = Path(sr3_folder_path)
+    src_sr3 = sr3_folder / f"{case_name}.{sim_results_file_format}"
+    if not src_sr3.is_file():
+        raise FileNotFoundError(f"Case not found: {src_sr3}")
+
+    save_folder_path = Path(save_folder_path)
+    save_folder_path.mkdir(parents=True, exist_ok=True)
+
+    tmp_ctx = None
+    if local_work_dir is None:
+        tmp_ctx = tempfile.TemporaryDirectory()
+        work = Path(tmp_ctx.name)
+    else:
+        work = Path(local_work_dir) / case_name
+        work.mkdir(parents=True, exist_ok=True)
+
+    written = {}
+    try:
+        # ---- copy the sr3 in once, and check it arrived whole ----------------
+        local_sr3 = work / src_sr3.name
+        if show_info:
+            print(f"{case_name}: copying {src_sr3.stat().st_size/1e6:.0f} MB sr3 to {work}")
+        shutil.copy2(src_sr3, local_sr3)
+        if local_sr3.stat().st_size != src_sr3.stat().st_size:
+            raise IOError(f"{case_name}: local sr3 is {local_sr3.stat().st_size} bytes, "
+                          f"source is {src_sr3.stat().st_size}")
+
+        (work / "rwo").mkdir(exist_ok=True)
+
+        # ---- one property at a time, deleting each rwo once parsed ----------
+        for property in property_list:
+            generate_CMG_rwd(
+                sr3_folder_path = work,
+                case_name = case_name,
+                property = property,
+                sim_results_file_format = sim_results_file_format,
+                precision = precision,
+            )
+            run_CMG_rwd_report(
+                rwd_folder_path = work,
+                case_name = case_name,
+                property = property,
+                cmg_version = cmg_version,
+                wait_for_output = True,
+            )
+            (work / f"{case_name}.rwd").unlink(missing_ok=True)
+
+            sim_results = CMG_rwo2npy(
+                rwo_folder_path = work / "rwo",
+                case_name = case_name,
+                property = property,
+                is_save = False,
+                save_folder_path = work,
+                show_info = show_info,
+                expected_shape = expected_shape,
+                expected_active = expected_active,
+                dtype = dtype,
+            )
+
+            out = save_folder_path / f"{case_name}_{property}.npy"
+            np.save(out, sim_results)
+            written[property] = out
+
+            if not keep_rwo:
+                (work / "rwo" / f"{case_name}_{property}.rwo").unlink(missing_ok=True)
+            del sim_results
+    finally:
+        if tmp_ctx is not None:
+            tmp_ctx.cleanup()
+        elif not keep_rwo:
+            # local_work_dir was given: clean the staged case but leave the root
+            shutil.rmtree(work, ignore_errors=True)
+
+    return written
